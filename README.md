@@ -1,262 +1,183 @@
-# PayBack — Personal Loan & Lending Tracker
+# PayBack — Update Notes (Mobile-Only + ChitHub UI Redesign)
 
-PayBack is an offline-first web app for individuals and small lenders to
-track loans they've given out — EMI loans and Interest-Only loans — along
-with customers, payments, penalties, foreclosures, write-offs, and reports.
-
-It ships as a **single self-contained HTML file**. There is no server, no
-build step, no npm install, and no internet connection required to use it.
-Every library it needs (React, Tailwind, jsPDF, icons) is bundled directly
-inside the file.
+This update was applied to `PayBack - Loan Management App.html`. It keeps the
+app exactly as functional as before — same single self-contained HTML file,
+same offline-first behaviour, **same business logic** — and changes only the
+UI layer and layout mode, per your instructions.
 
 ---
 
-## Table of Contents
+## What changed
 
-- [Features](#features)
-- [Installation](#installation)
-- [First-Time Setup](#first-time-setup)
-- [Usage Guide](#usage-guide)
-  - [Adding a Customer](#adding-a-customer)
-  - [Creating an EMI Loan](#creating-an-emi-loan)
-  - [Creating an Interest-Only Loan](#creating-an-interest-only-loan)
-  - [Recording a Payment](#recording-a-payment)
-  - [Foreclosing a Loan](#foreclosing-a-loan)
-  - [Editing or Deleting](#editing-or-deleting)
-  - [Locking the App](#locking-the-app)
-  - [Reports & Exports](#reports--exports)
-- [Dashboard Reference](#dashboard-reference)
-- [Data & Security](#data--security)
-- [Known Limitations](#known-limitations)
-- [Troubleshooting](#troubleshooting)
+### 1. Desktop version removed
+- The old header had two modes: a `hidden lg:flex` top nav row on wide
+  screens, and a hamburger button (`lg:hidden`) that toggled a dropdown nav
+  on narrow screens.
+- Both are gone. The header is now identical at every screen width: logo +
+  lock button only.
+- Primary navigation moved to a **permanent bottom tab bar** (Dashboard /
+  Customers / Reports / Settings), always visible, matching ChitHub's nav
+  pattern. There is no more nav state to open/close.
+- The one other desktop-only layout rule (`lg:grid-cols-3` on the Customers
+  grid) was also removed, and the page content is capped at a phone-width
+  column (`max-w-lg`, ~512px) instead of the old `max-w-7xl` desktop-width
+  container — so the app now looks the same, and is laid out the same way,
+  whether it's opened on a phone or a wide monitor.
 
----
+### 2. Dead code cleanup
+- Removed the `mobileNavOpen` state, its setter, the hamburger `<button>`,
+  and the dropdown nav block that depended on it — all unused once the
+  bottom tab bar replaced them.
+- No other unused functions, variables, or commented-out blocks were found
+  in the application code. (Note: the file also bundles React, Babel
+  standalone, the Tailwind v4 browser engine, jsPDF, and lucide icons inline
+  so the app keeps working fully offline, per the original README — those
+  are active runtime dependencies, not dead code, so they were left alone.)
 
-## Features
+### 3. UI redesign to match ChitHub
+- Replaced PayBack's blue/cyan "glass" theme with ChitHub's exact navy/gold
+  design tokens, added as a Tailwind `@theme` block so the same utility
+  classes you're used to (`bg-navy-800`, `text-gold-400`, `text-mid`, etc.)
+  are generated automatically:
+  - Backgrounds: `navy-950` / `navy-900` / `navy-800` / `navy-700` / `navy-600`
+  - Accent: `gold-400` / `gold-500` (replacing the old cyan accent)
+  - Text: `hi` / `mid` / `dim` (replacing `slate-200/400/500`)
+  - Status colors: `danger` / `success` / `warn` (replacing `red-/emerald-/amber-`)
+  - Blue kept for the "Active" status badge, same hue family as ChitHub's blue.
+- Card, button, input, and badge components (`.glass`, `.glass-input`,
+  `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.pill`) were redefined to
+  ChitHub's flat, borderless-glow card look instead of the old blurred
+  glass-panel/gradient-button look.
+- Added `.nav-item` for the new bottom tab bar, matching ChitHub's nav-item
+  pattern (icon above label, gold when active, muted otherwise).
+- Number formatting was already `₹` + `toLocaleString('en-IN')` in both apps
+  — this already matched ChitHub's `fmtMoney`/`fmtNum`, so no change was
+  needed there.
+- Dropdowns/selects all route through the same shared `inputCls` /
+  `.glass-input` styling used for text inputs, so they picked up the new
+  look automatically — dark background, navy border, gold focus ring —
+  without needing to touch each `<select>` individually.
 
-- **Dashboard** — live KPI cards: Total Principal Outstanding, Expected
-  Income (this month), Collected EMI/Interest (this month), Pending
-  EMI/Interest (this month), Foreclosure, Write-off, plus a per-loan
-  breakdown table with Status/Type filters.
-- **Customers** — add, edit, and delete customers (Aadhaar/PAN stored
-  encrypted, phone number validated and mandatory, optional "Browse
-  Contact" picker on supported Android browsers).
-- **Loans** — two loan types per customer:
-  - **EMI loans**: Reducing or Flat interest method, Monthly/Yearly rate
-    entry, 3/6/12/24/48/60-month tenure, Monthly or Weekly collection
-    frequency, full amortization schedule.
-  - **Interest-Only loans**: recurring interest-only payments against the
-    outstanding principal, Monthly or Weekly frequency.
-- **Payments** — record full or partial payments, with an automatic
-  waterfall allocation (Penalty → Interest → Principal → Excess), comma-
-  formatted currency input, and a live Pending calculation.
-- **Foreclosure** — pay off a loan's full remaining balance in one
-  transaction; closes the loan and is tracked separately on the Dashboard.
-- **Write-off** — mark an unrecoverable loan's principal as written off.
-- **PIN Lock & Encryption** — optional 6-digit PIN, AES-256-GCM encrypted
-  local storage, 10-minute auto-lock with a 60-second warning, and a
-  guided in-app flow to set a PIN if you lock the app before one exists.
-- **SMS Notification** — one-tap SMS reminder per loan with the current
-  EMI/interest amount pre-filled.
-- **Reports** — per-customer, per-loan CSV export and a PDF statement
-  (EMI loans) including the full amortization schedule.
-- **Factory Reset** — PIN-gated full data wipe, for starting over cleanly.
+### 4. Validation performed
+- **Babel/JSX compile check**: the edited app source was extracted and run
+  through `@babel/standalone`'s React preset — it compiles cleanly with no
+  syntax errors.
+- **Headless boot test (jsdom)**: loaded the full file in a simulated
+  browser DOM, polyfilled the two browser APIs jsdom doesn't ship
+  (`Performance.mark`/`measure`, used internally by the Tailwind engine, and
+  `crypto.subtle`, used by the app's vault encryption), and drove the app
+  through onboarding (business setup → skip PIN) to the dashboard. Result:
+  - App renders with no thrown errors and no "PayBack couldn't load" fallback.
+  - Bottom nav renders with exactly 4 items (Dashboard/Customers/Reports/Settings).
+  - Zero `lg:` classes and zero leftover hamburger/menu buttons remain anywhere.
+  - New ChitHub color classes (`text-gold-400`, `bg-navy-700`, `text-mid`, etc.)
+    are present and applied on real rendered elements.
+- **Limitation**: this sandbox has no real browser engine (no Chromium/
+  Playwright available — those installers reach outside the permitted
+  network egress list), and jsdom does not implement layout, painting, or
+  `backdrop-filter`, so a true pixel/visual screenshot comparison against
+  ChitHub could not be produced here. Everything above confirms the app
+  *runs* correctly end-to-end and *is wired to* the new theme; a final
+  visual pass in a real browser (just open the file — see below) is
+  recommended before you consider this fully signed off.
+
+### What did *not* change
+- No business logic, calculations, data model, storage/encryption, or
+  feature behavior was touched — only `className` values, the header/nav
+  markup, and the CSS `<style>` block.
 
 ---
 
 ## Installation
 
-Since PayBack is a single HTML file, there's no traditional "install."
-Pick whichever of these fits how you want to use it:
+Same as before — it's still a single offline HTML file, no build step:
 
-### Option A — Just open it (simplest)
-1. Download `PayBack_-_Loan_Management_App.html`.
-2. Double-click it, or drag it into any modern browser (Chrome, Edge,
-   Safari, Firefox).
-3. That's it — the app runs entirely in that browser tab.
+1. Download `PayBack - Loan Management App.html`.
+2. Double-click it, or drag it into Chrome, Edge, Safari, or Firefox.
+3. If you had an existing vault in that browser from the old version, your
+   data is untouched — this update only changed presentation code, not the
+   data layer.
 
-> Your data is tied to **that specific browser** on **that specific
-> device**. Opening the file in a different browser, or in Incognito/
-> Private mode, starts a fresh, empty vault.
+## What to check when you open it
 
-### Option B — Keep it handy on your device
-- **Desktop**: Save the file somewhere permanent (e.g. Documents), then
-  bookmark the opened tab, or create a desktop shortcut to the file.
-- **Android**: Open the file in Chrome, then use the browser menu →
-  "Add to Home screen" for an app-like icon.
-- **iOS**: Open the file in Safari, then use the Share sheet → "Add to
-  Home Screen."
-
-### Option C — Serve it over a local web server (optional)
-If your browser restricts certain features on `file://` pages, serve the
-folder locally instead:
-
-```bash
-# Python 3
-python3 -m http.server 8000
-
-# Node.js (via npx)
-npx serve .
-```
-
-Then open `http://localhost:8000/PayBack_-_Loan_Management_App.html` (or
-whatever port/tool you used).
-
-**Do not** re-host the file on a public server without adding your own
-authentication in front of it — the app protects data with a local PIN,
-not a login system, and is designed for single-device personal use.
+- Confirm the bottom tab bar (Dashboard / Customers / Reports / Settings)
+  appears and switches pages correctly, at any window width.
+- Confirm there's no hamburger icon or top nav row, even on a wide/desktop
+  browser window.
+- Confirm the color scheme (navy backgrounds, gold accents) matches ChitHub's
+  look across Dashboard, Customers, Loan detail, Payments, Reports, Settings,
+  onboarding, and the PIN lock screen.
+- Confirm dropdowns (loan type, frequency, tenure, status/type filters,
+  payment mode, etc.) show the new dark/gold-focus styling.
 
 ---
 
-## First-Time Setup
+## Follow-up update: real logo + background artwork
 
-On first launch you'll walk through a 3-step onboarding flow:
+A further request asked for the app's logo and background to be updated to
+match two supplied images (`Logo.png`, `Mobile.png`). Changes made:
 
-1. **Business Setup** — enter your Lender/Business Name and Phone Number
-   (required), and Address (optional). Tap **Register** to continue.
-2. **Security & PIN Lock** — create a 6-digit PIN, or tap **Skip for Now**
-   to use the app without one. You can add, change, or remove a PIN later
-   any time from **Settings → Security**.
-   - *With a PIN*: your data is zero-knowledge encrypted using that PIN.
-     There is no recovery if you forget it.
-   - *Without a PIN*: data is still encrypted at rest with a built-in key,
-     but anyone with access to the device can open the app.
-3. **Dashboard** — setup is complete and you land on the main Dashboard.
-
----
-
-## Usage Guide
-
-### Adding a Customer
-Go to **Customers → Add Customer**. Enter Full Name, Phone Number
-(mandatory, 10-digit validated), ID Details (Aadhaar/PAN — stored
-encrypted), and optionally use the contact picker icon to pull details
-from your device's contacts (Chrome on Android only).
-
-### Creating an EMI Loan
-From a customer's profile, tap **New Loan** and choose **EMI**:
-1. **Core Terms** — Principal Amount, Interest Rate (with a Monthly/Yearly
-   toggle), EMI Collection Frequency (Monthly or Weekly), Tenure.
-2. **Engine Rules** — Reducing or Flat interest method, Start Date, grace
-   period/penalty settings.
-3. **Schedule Preview** — review the generated amortization schedule
-   before confirming.
-4. **Confirm** — creates the loan and its first due date.
-
-### Creating an Interest-Only Loan
-Same flow, but choose **Interest-Only**. There's no fixed tenure or
-amortization schedule — you set the Principal, Interest Rate, and
-Interest Collection Frequency (Monthly or Weekly), and the loan continues
-until you foreclose, write it off, or close it manually.
-
-### Recording a Payment
-Open the loan, tap **Record Payment**, enter the amount (comma-formatted
-as you type) and payment mode. Partial payments are supported — the app
-tracks the shortfall and reflects it as Pending on the Dashboard and in
-the loan's Transactions table.
-
-### Foreclosing a Loan
-From the loan's detail view, choose **Foreclose** to pay off the entire
-remaining balance in one transaction. This closes the loan and records
-the payoff amount separately under the Dashboard's Foreclosure card for
-that month.
-
-### Editing or Deleting
-- **Customers**: edit or delete from the customer profile (deleting a
-  customer cascades to their loans and history).
-- **Loans**: delete an individual loan via the accordion header's delete
-  icon, or use "Select Loans" in the customer profile to bulk-delete
-  specific loans without touching the customer record.
-- **Transactions**: edit or void individual transactions; editing
-  recalculates partial-payment and shortfall figures automatically.
-
-### Locking the App
-Tap the lock icon in the header any time to lock the app immediately.
-- **If a PIN is already set**: you're taken straight to the PIN-entry
-  screen.
-- **If no PIN is set yet**: you're prompted to set one first (with a
-  Cancel option to back out and keep using the app unlocked). Once a PIN
-  is set, the app locks immediately using that new PIN.
-
-The app also auto-locks after 10 minutes of inactivity (with a warning at
-the 9-minute mark) whenever a PIN is configured.
-
-### Reports & Exports
-Go to **Report Download → Customer Statements**. Pick a customer, then a
-specific loan, to download:
-- A **CSV** of that loan's full transaction history.
-- A **PDF statement** (EMI loans) including the complete amortization
-  schedule, available as soon as the loan is created — even before any
-  payments are made.
+- **Icon**: cropped the "P" mark out of the supplied `Logo.png` (it sits on
+  a near-black background that's virtually identical to this app's
+  `navy-950`, so it drops in with no visible edge), downscaled and optimized
+  it (~90KB), and embedded it as a base64 PNG. It replaces the old hand-drawn
+  SVG icon in the `PayBackLogo` component everywhere the logo appears
+  (onboarding hero, header).
+- **Background**: downscaled and re-compressed the supplied `Mobile.png`
+  (blue glow top-left, teal glow bottom-right, dot/wave texture) to a ~17KB
+  JPEG and embedded it as the app's background via a `position:fixed`
+  `body::before` layer (rather than `background-attachment:fixed` on body,
+  which has known jank on iOS Safari) — so it stays put and covers the full
+  viewport regardless of scroll position or content height.
+- **Accent color**: since the last update's gold accent no longer matched
+  the brand artwork, every gold-themed class (buttons, active states,
+  wordmark gradient) was switched to a blue→teal gradient sampled directly
+  from the logo's own colors, so the whole app now reads as one consistent
+  brand rather than two different palettes stitched together.
+- Total file size grew from ~3.80MB to ~3.94MB (the two images add ~140KB
+  combined after compression) — still a single, fully offline HTML file.
+- Re-validated with the same Babel compile + jsdom boot-and-navigate test as
+  before: the app renders, the logo `<img>` is present with valid embedded
+  image data, the bottom nav still works, and no old gold-color classes
+  remain anywhere.
 
 ---
 
-## Dashboard Reference
+## Bug fix: white background instead of navy/artwork
 
-All figures except Total Principal Outstanding are scoped to the
-**current calendar month** (there is no date-range picker):
+**Root cause**: the browser Tailwind engine only reads custom theme
+definitions (`@theme{...}`, our navy/blue/teal/hi/mid/dim/danger/success/warn
+colors) from a `<style type="text/tailwindcss">` tag specifically — it
+ignores that same content in a plain `<style>` tag. My previous edit put the
+whole custom `@theme` block inside a plain `<style>` tag, so:
+- Every Tailwind utility class using our custom names (`bg-navy-950`,
+  `text-hi`, `text-mid`, `text-dim`, `bg-navy-800`, etc.) silently generated
+  no CSS at all (unknown color → ignored, not an error).
+- Stock Tailwind colors that happen to already exist by default (like
+  `teal-400`, used for the active onboarding-step indicator) still worked,
+  which is why *some* color showed correctly while everything else fell back
+  to browser defaults (white background, black text) — matching exactly
+  what you saw.
 
-| Card | Meaning |
-|---|---|
-| **Total Principal Outstanding** | Live snapshot of outstanding principal across all ACTIVE/OVERDUE/PARTIALLY_SETTLED loans, as of today. |
-| **Expected Income** | Sum of each active loan's fixed scheduled EMI/interest amount for the current month — Monthly loans count once, Weekly loans count as 4× the per-cycle amount. This is independent of whether the installment has already been paid. |
-| **Collected EMI/Interest** | Total payment amount actually collected this month. |
-| **Pending EMI/Interest** | Expected Income minus Collected, floored at zero. |
-| **Foreclosure** | Total foreclosure payoff amount collected this month. |
-| **Write-off** | Total principal written off this month. |
+**Fix**: split the CSS into two tags, in the correct roles:
+- A `<style type="text/tailwindcss">` tag (placed before the Tailwind engine
+  `<script>`, so it's in the DOM in time for the engine's first pass)
+  containing only the `@theme{...}` block — this is what makes
+  `bg-navy-950`, `text-hi`, etc. work as real Tailwind utilities.
+- The original plain `<style>` tag keeps the hand-written CSS (`.glass`,
+  `.btn-primary`, `body`, the background image layer, etc.) — and now also
+  re-declares the same colors as plain `:root` custom properties, so that
+  hand-written CSS (which Tailwind's engine never touches) can reference
+  `var(--color-navy-950)` etc. directly without depending on the JIT engine.
 
-A loan that is foreclosed or written off no longer contributes to Expected
-Income for that month (only loans currently ACTIVE, OVERDUE, or
-PARTIALLY_SETTLED are counted).
+Re-verified: the Tailwind engine's compiled stylesheet now contains our
+custom hex values (confirmed by inspecting its generated `<style>` output
+in a scripted run), and the `:root` custom properties are present in the
+hand-written stylesheet for `body`/`.grad-text`/`.nav-item` to use directly.
 
----
+## Known limitations (carried over, unchanged from before)
 
-## Data & Security
-
-- **Storage**: all data lives in your browser's IndexedDB (with a
-  localStorage fallback), scoped to the specific browser + device you
-  opened the file in. Nothing is sent anywhere over a network.
-- **Encryption**: the entire data vault is encrypted at rest with
-  AES-256-GCM. The encryption key is derived via PBKDF2-SHA256 (310,000
-  iterations) from either your PIN, or — if you skip PIN setup — a
-  built-in passphrase baked into the app (which allows automatic
-  unlocking, but means the data is only as protected as physical access
-  to the device).
-- **PIN recovery**: if you set a PIN and forget it, there is **no
-  recovery path** by design (that's what "zero-knowledge" means here) —
-  your only option is Factory Reset, which erases all data.
-- **Factory Reset**: available in Settings, gated behind your current PIN
-  (or a typed "DELETE" confirmation if no PIN is set), and wipes the
-  vault completely.
-
----
-
-## Known Limitations
-
-- **Single device/browser only** — there is no sync, backup, or
-  multi-device access built in. Use the CSV/PDF exports as your backup
-  strategy.
-- **No login system / multi-user support** — this is a personal, single-
-  operator tool, not a multi-tenant SaaS product.
-- **Contact picker** is Chrome-on-Android only (a browser API
-  limitation, not a bug).
-- **No cloud backup** — clearing your browser's site data, or switching
-  browsers/devices, means starting over unless you've exported reports.
-
----
-
-## Troubleshooting
-
-- **"I forgot my PIN"** — there's no recovery; you'll need to Factory
-  Reset (Settings) and start fresh.
-- **Blank screen on load** — try a hard refresh; if it persists, check
-  the browser console for errors and confirm you're using a modern,
-  up-to-date browser (Chrome, Edge, Safari, or Firefox).
-- **Data seems to have disappeared** — you're likely opening the file in
-  a different browser, a different device, or an Incognito/Private
-  window than the one you originally set it up in. Data is local to the
-  exact browser profile it was created in.
-- **PDF export shows "Rs." instead of ₹** — this is intentional: the PDF
-  engine's built-in font can't render the ₹ glyph reliably, so exports
-  use "Rs." for safety while the live app UI continues to show ₹
-  everywhere.
+- Single device/browser only — no sync or cloud backup.
+- Contact picker is Chrome-on-Android only.
+- PDF export still prints "Rs." instead of "₹" (font limitation in the
+  bundled PDF engine, unrelated to this UI update).
