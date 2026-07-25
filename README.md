@@ -1,183 +1,314 @@
-# PayBack — Update Notes (Mobile-Only + ChitHub UI Redesign)
+# PayBack — UI update notes
 
-This update was applied to `PayBack - Loan Management App.html`. It keeps the
-app exactly as functional as before — same single self-contained HTML file,
-same offline-first behaviour, **same business logic** — and changes only the
-UI layer and layout mode, per your instructions.
+`PayBack - Loan Management App.html` is a single self-contained file (React 18 UMD +
+Babel standalone + Tailwind v4 browser JIT + Lucide + jsPDF). These notes cover three
+consecutive update passes applied to it.
 
----
-
-## What changed
-
-### 1. Desktop version removed
-- The old header had two modes: a `hidden lg:flex` top nav row on wide
-  screens, and a hamburger button (`lg:hidden`) that toggled a dropdown nav
-  on narrow screens.
-- Both are gone. The header is now identical at every screen width: logo +
-  lock button only.
-- Primary navigation moved to a **permanent bottom tab bar** (Dashboard /
-  Customers / Reports / Settings), always visible, matching ChitHub's nav
-  pattern. There is no more nav state to open/close.
-- The one other desktop-only layout rule (`lg:grid-cols-3` on the Customers
-  grid) was also removed, and the page content is capped at a phone-width
-  column (`max-w-lg`, ~512px) instead of the old `max-w-7xl` desktop-width
-  container — so the app now looks the same, and is laid out the same way,
-  whether it's opened on a phone or a wide monitor.
-
-### 2. Dead code cleanup
-- Removed the `mobileNavOpen` state, its setter, the hamburger `<button>`,
-  and the dropdown nav block that depended on it — all unused once the
-  bottom tab bar replaced them.
-- No other unused functions, variables, or commented-out blocks were found
-  in the application code. (Note: the file also bundles React, Babel
-  standalone, the Tailwind v4 browser engine, jsPDF, and lucide icons inline
-  so the app keeps working fully offline, per the original README — those
-  are active runtime dependencies, not dead code, so they were left alone.)
-
-### 3. UI redesign to match ChitHub
-- Replaced PayBack's blue/cyan "glass" theme with ChitHub's exact navy/gold
-  design tokens, added as a Tailwind `@theme` block so the same utility
-  classes you're used to (`bg-navy-800`, `text-gold-400`, `text-mid`, etc.)
-  are generated automatically:
-  - Backgrounds: `navy-950` / `navy-900` / `navy-800` / `navy-700` / `navy-600`
-  - Accent: `gold-400` / `gold-500` (replacing the old cyan accent)
-  - Text: `hi` / `mid` / `dim` (replacing `slate-200/400/500`)
-  - Status colors: `danger` / `success` / `warn` (replacing `red-/emerald-/amber-`)
-  - Blue kept for the "Active" status badge, same hue family as ChitHub's blue.
-- Card, button, input, and badge components (`.glass`, `.glass-input`,
-  `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.pill`) were redefined to
-  ChitHub's flat, borderless-glow card look instead of the old blurred
-  glass-panel/gradient-button look.
-- Added `.nav-item` for the new bottom tab bar, matching ChitHub's nav-item
-  pattern (icon above label, gold when active, muted otherwise).
-- Number formatting was already `₹` + `toLocaleString('en-IN')` in both apps
-  — this already matched ChitHub's `fmtMoney`/`fmtNum`, so no change was
-  needed there.
-- Dropdowns/selects all route through the same shared `inputCls` /
-  `.glass-input` styling used for text inputs, so they picked up the new
-  look automatically — dark background, navy border, gold focus ring —
-  without needing to touch each `<select>` individually.
-
-### 4. Validation performed
-- **Babel/JSX compile check**: the edited app source was extracted and run
-  through `@babel/standalone`'s React preset — it compiles cleanly with no
-  syntax errors.
-- **Headless boot test (jsdom)**: loaded the full file in a simulated
-  browser DOM, polyfilled the two browser APIs jsdom doesn't ship
-  (`Performance.mark`/`measure`, used internally by the Tailwind engine, and
-  `crypto.subtle`, used by the app's vault encryption), and drove the app
-  through onboarding (business setup → skip PIN) to the dashboard. Result:
-  - App renders with no thrown errors and no "PayBack couldn't load" fallback.
-  - Bottom nav renders with exactly 4 items (Dashboard/Customers/Reports/Settings).
-  - Zero `lg:` classes and zero leftover hamburger/menu buttons remain anywhere.
-  - New ChitHub color classes (`text-gold-400`, `bg-navy-700`, `text-mid`, etc.)
-    are present and applied on real rendered elements.
-- **Limitation**: this sandbox has no real browser engine (no Chromium/
-  Playwright available — those installers reach outside the permitted
-  network egress list), and jsdom does not implement layout, painting, or
-  `backdrop-filter`, so a true pixel/visual screenshot comparison against
-  ChitHub could not be produced here. Everything above confirms the app
-  *runs* correctly end-to-end and *is wired to* the new theme; a final
-  visual pass in a real browser (just open the file — see below) is
-  recommended before you consider this fully signed off.
-
-### What did *not* change
-- No business logic, calculations, data model, storage/encryption, or
-  feature behavior was touched — only `className` values, the header/nav
-  markup, and the CSS `<style>` block.
+**No business logic was changed in any pass.** Interest/EMI/penalty math, the payment
+waterfall, encryption, migration and all stored data are untouched. The only new
+computation anywhere is the PDF's totals row, which sums the existing schedule. Pass 3
+did restructure navigation (see 2.3) but not what any figure means.
 
 ---
 
-## Installation
+## 1. Installation
 
-Same as before — it's still a single offline HTML file, no build step:
+No build step, no `npm install`, no environment variables.
 
-1. Download `PayBack - Loan Management App.html`.
-2. Double-click it, or drag it into Chrome, Edge, Safari, or Firefox.
-3. If you had an existing vault in that browser from the old version, your
-   data is untouched — this update only changed presentation code, not the
-   data layer.
+1. Save `PayBack - Loan Management App.html` anywhere on disk.
+2. Open it in a browser — double-click, or navigate to the `file://` path. It also works
+   uploaded to any static host (GitHub Pages, Netlify, an S3 bucket).
+3. First run walks through onboarding: Business Setup → Security & PIN Lock → Dashboard.
+4. **Upgrading an existing vault:** open the new file in the *same browser profile* as
+   the old one — the vault lives in that profile's IndexedDB, and `migrateVault()` runs
+   automatically on unlock. Opening it in a different browser or a private window shows
+   an empty vault; that is expected, nothing has been lost.
 
-## What to check when you open it
-
-- Confirm the bottom tab bar (Dashboard / Customers / Reports / Settings)
-  appears and switches pages correctly, at any window width.
-- Confirm there's no hamburger icon or top nav row, even on a wide/desktop
-  browser window.
-- Confirm the color scheme (navy backgrounds, gold accents) matches ChitHub's
-  look across Dashboard, Customers, Loan detail, Payments, Reports, Settings,
-  onboarding, and the PIN lock screen.
-- Confirm dropdowns (loan type, frequency, tenure, status/type filters,
-  payment mode, etc.) show the new dark/gold-focus styling.
+**Rolling back:** keep your previous copy of the file and open it in the same browser
+profile. The vault is untouched by either pass, so no data migration is involved in
+either direction.
 
 ---
 
-## Follow-up update: real logo + background artwork
+## 2. Pass 3 — dropdowns, customer accordion, collapsed-by-default
 
-A further request asked for the app's logo and background to be updated to
-match two supplied images (`Logo.png`, `Mobile.png`). Changes made:
+### 2.1 Dropdowns opened white
 
-- **Icon**: cropped the "P" mark out of the supplied `Logo.png` (it sits on
-  a near-black background that's virtually identical to this app's
-  `navy-950`, so it drops in with no visible edge), downscaled and optimized
-  it (~90KB), and embedded it as a base64 PNG. It replaces the old hand-drawn
-  SVG icon in the `PayBackLogo` component everywhere the logo appears
-  (onboarding hero, header).
-- **Background**: downscaled and re-compressed the supplied `Mobile.png`
-  (blue glow top-left, teal glow bottom-right, dot/wave texture) to a ~17KB
-  JPEG and embedded it as the app's background via a `position:fixed`
-  `body::before` layer (rather than `background-attachment:fixed` on body,
-  which has known jank on iOS Safari) — so it stays put and covers the full
-  viewport regardless of scroll position or content height.
-- **Accent color**: since the last update's gold accent no longer matched
-  the brand artwork, every gold-themed class (buttons, active states,
-  wordmark gradient) was switched to a blue→teal gradient sampled directly
-  from the logo's own colors, so the whole app now reads as one consistent
-  brand rather than two different palettes stitched together.
-- Total file size grew from ~3.80MB to ~3.94MB (the two images add ~140KB
-  combined after compression) — still a single, fully offline HTML file.
-- Re-validated with the same Babel compile + jsdom boot-and-navigate test as
-  before: the app renders, the logo `<img>` is present with valid embedded
-  image data, the bottom nav still works, and no old gold-color classes
-  remain anywhere.
+The app never declared `color-scheme` anywhere. A native `<select>` popup is painted
+by the browser/OS, not by your CSS — your styling only reaches the closed control, so
+the open list came up in the light scheme regardless. Fixed with `color-scheme: dark`
+on `:root` plus explicit `option`/`optgroup` colours for Firefox, which ignores the
+inherited scheme for option backgrounds.
+
+Six selects were affected: the two loan filters, payment mode, rate basis, EMI
+frequency and tenure. The same declaration also darkens native scrollbars and the date
+picker, which is consistent with the rest of the UI.
+
+### 2.2 The ⋮ menu is gone, replaced by Delete
+
+The three-dot button was a decoy — its `onClick` called `goToProfile()`, exactly what
+clicking the row already did. There was no menu behind it, so nothing was lost by
+removing it. In its place is a trash icon that opens the existing `DeleteCustomerModal`
+directly from the list, with `stopPropagation()` so it doesn't also toggle the row.
+
+### 2.3 Customer profile folded into the list
+
+**This is the structural change in this pass.** Customers and the customer profile were
+two separate routes. The profile is now an inline accordion body inside the customer
+row:
+
+- `CustomerProfilePage` → `CustomerProfileBody`, with the "Back to Customers" button and
+  the duplicated name/avatar header removed. The row header already carries those, so
+  the body starts at the stats + actions bar (Loans, Phone, Edit / Delete / New Loan).
+- The row is now a keyboard-accessible toggle (`role="button"`, Enter/Space, `aria-expanded`)
+  with a rotating chevron.
+- Collapsing returns you to the plain list with the Add Customer button — no navigation.
+- The ID stat became **Phone**, since the row beneath the name already shows the customer
+  ID and repeating it inside the expanded body was redundant.
+
+**Deep links still work and needed no edits at their call sites.** Six places route into
+the profile: two notification paths, the URL hash router, global search, the dashboard
+loan table, and the list row. The `customerProfile` route is kept as an alias that renders
+`CustomersPage` with `initialExpandId`, so every one of those still lands on the right
+customer — now by expanding the row instead of navigating. Arriving via a loan deep link
+still opens that specific loan inside the expanded customer.
+
+### 2.4 Everything collapsed by default
+
+`Collapsible` now defaults to `defaultOpen={false}`, and the two call sites that passed
+`true` (dashboard Summary, Report-page customer cards) were changed to `false`. The loan
+list no longer auto-opens the first loan — `expanded` starts at `null` rather than
+`loans[0].id`. The one deliberate exception is a deep link carrying `openLoanId`, which
+still opens its target; that is the point of the link.
 
 ---
 
-## Bug fix: white background instead of navy/artwork
+## 3. Pass 2 — customer page, loan row, schedule tab, currency input, PDF
 
-**Root cause**: the browser Tailwind engine only reads custom theme
-definitions (`@theme{...}`, our navy/blue/teal/hi/mid/dim/danger/success/warn
-colors) from a `<style type="text/tailwindcss">` tag specifically — it
-ignores that same content in a plain `<style>` tag. My previous edit put the
-whole custom `@theme` block inside a plain `<style>` tag, so:
-- Every Tailwind utility class using our custom names (`bg-navy-950`,
-  `text-hi`, `text-mid`, `text-dim`, `bg-navy-800`, etc.) silently generated
-  no CSS at all (unknown color → ignored, not an error).
-- Stock Tailwind colors that happen to already exist by default (like
-  `teal-400`, used for the active onboarding-step indicator) still worked,
-  which is why *some* color showed correctly while everything else fell back
-  to browser defaults (white background, black text) — matching exactly
-  what you saw.
+### 2.1 Customer detail header
 
-**Fix**: split the CSS into two tags, in the correct roles:
-- A `<style type="text/tailwindcss">` tag (placed before the Tailwind engine
-  `<script>`, so it's in the DOM in time for the engine's first pass)
-  containing only the `@theme{...}` block — this is what makes
-  `bg-navy-950`, `text-hi`, etc. work as real Tailwind utilities.
-- The original plain `<style>` tag keeps the hand-written CSS (`.glass`,
-  `.btn-primary`, `body`, the background image layer, etc.) — and now also
-  re-declares the same colors as plain `:root` custom properties, so that
-  hand-written CSS (which Tailwind's engine never touches) can reference
-  `var(--color-navy-950)` etc. directly without depending on the JIT engine.
+Rebuilt to match the supplied target layout. The stat row now uses rounded icon tiles
+with a label/value pair rather than a run-on line, which also fixes the `1Loans`
+spacing bug (the count and the word had no separator):
 
-Re-verified: the Tailwind engine's compiled stylesheet now contains our
-custom hex values (confirmed by inspecting its generated `<style>` output
-in a scripted run), and the `:root` custom properties are present in the
-hand-written stylesheet for `body`/`.grad-text`/`.nav-item` to use directly.
+- Loans tile — teal-tinted, count rendered in teal mono
+- ID tile — neutral, ID rendered in mono
+- Masked ID details, when present, follow behind a divider
+- Action buttons right-aligned at a uniform 44px height, matching the control height
+  set in pass 1. "New Loan" uses `circle-plus` to match the target.
 
-## Known limitations (carried over, unchanged from before)
+### 2.2 Loan row shows principal only
 
-- Single device/browser only — no sync or cloud backup.
-- Contact picker is Chrome-on-Android only.
-- PDF export still prints "Rs." instead of "₹" (font limitation in the
-  bundled PDF engine, unrelated to this UI update).
+The loan row previously rendered the outstanding balance with the original principal
+beneath it:
+
+```
+₹1,00,000
+of ₹1,00,000
+```
+
+The `of …` sub-line is gone and the remaining figure is now `loan.principal`.
+
+> **Worth a second look.** This changes *which* number is displayed, not just deletes a
+> line. The row previously led with `currentPrincipalBalance` (outstanding) and now
+> shows `principal` (original). On a loan with repayments recorded, these differ — the
+> row will no longer reflect what is still owed. In the screenshot they happened to be
+> identical because no payments existed yet. If you wanted the outstanding figure kept
+> and only the second line dropped, it's a one-word edit.
+
+### 2.3 "Amortization Schedule" → "Schedule"
+
+Renamed on the loan accordion tab. The PDF's heading is now "Loan Statement" (see 2.5),
+so "amortization" no longer appears in any user-facing label.
+
+### 2.4 Live comma grouping while typing
+
+`CurrencyInput` previously showed a grouped value only when the field was *not* focused
+— so commas vanished the moment you started typing. It now formats on every keystroke
+using Indian grouping:
+
+```
+1 · 12 · 123 · 1,234 · 12,345 · 1,23,456 · 12,34,567 · 1,00,00,000
+```
+
+Two details worth knowing:
+
+- **Caret preservation.** Reformatting on each keystroke would normally throw the cursor
+  to the end of the field, making mid-string edits impossible. The component records how
+  many significant characters sat left of the caret before the edit and re-derives the
+  equivalent offset in the regrouped string. Inserting a digit at the front of
+  `1,00,000` leaves the caret just after the new digit, not at the end.
+- **Decimals survive.** Grouping applies to the integer part only, so a half-typed
+  `1234.` or a trailing `1,234.50` round-trips instead of being eaten by
+  `toLocaleString`. Leading zeros collapse (`007` → `7`), which is the desirable
+  behaviour mid-typing.
+
+The stored value is unchanged — `sanitizeCurrencyRaw` still strips everything but digits
+and a single decimal point before it reaches state, so no commas enter the vault.
+
+### 2.5 PDF statement redesign
+
+Rebuilt from a plain heading-plus-table into a structured document:
+
+- **Header band** — navy block with a teal rule, lender name, "Loan Statement",
+  generation date and loan name. Repeats on every page.
+- **Two info panels** — borrower (name, ID, phone) and loan (type, interest method,
+  status).
+- **Four summary cards** — Principal, Instalment (accented), Rate, Cycles.
+- **Table** — navy header, zebra striping, numeric columns right-aligned, dates left,
+  cycle centred. Headings shortened to Opening / Closing so figures have room.
+- **Totals row** — sums EMI, Interest and Principal across the schedule.
+- **Footer** — hairline rule, "computer generated" note, page number. Repeats on every
+  page, and the table's top margin is set so multi-page schedules never collide with the
+  header band.
+
+Interest-only loans carry `interestDue` where EMI loans carry `emi`; every figure in the
+table, the totals and the Instalment card falls back accordingly so those statements
+aren't blank.
+
+Filename changed from `<loan>_Amortization_Statement.pdf` to
+`<customer>_<loan>_Statement.pdf`.
+
+---
+
+## 4. Pass 1 — alignment sweep
+
+### 3.1 Icon rendering — root cause behind most of the misalignment
+
+`Icon` injects a Lucide SVG imperatively into a wrapper `<span>`. It applied the
+caller's `className` to the **injected SVG**, while the wrapper `<span>` stayed in normal
+document flow with no classes. So a call like
+
+```jsx
+<Icon className="absolute left-3 top-1/2 -translate-y-1/2" ... />
+```
+
+absolutely positioned the SVG but left a 16×16 phantom inline box in the flow ahead of
+the input, nudging the field and leaving the glyph optically low and left.
+
+`className` now goes on the wrapper `<span>`, which carries an explicit width/height.
+Colour and sizing still inherit into the SVG via `currentColor` and `font-size`, so
+existing `<Icon className="text-mid" />` calls are unaffected. This one fix corrected all
+8 leading-icon instances app-wide.
+
+### 3.2 Uniform control height
+
+`inputCls` changed from `px-3 py-2.5` to `px-3 h-11` — every input and select is exactly
+44px. Segmented button pairs (Loan Type, Interest Method) got `h-11` and
+`whitespace-nowrap`, so "EMI (Amortizing)" no longer wraps and inflates its grid row.
+This is what makes the New Loan wizard's two columns line up.
+
+### 3.3 Onboarding tiles — option C
+
+The 44px icon tile sat in a flex row alongside `<Field>` (label + input), and flex
+top-alignment centred it on the *label*. The tile now carries `mt-[22px]` — exactly the
+label block's height (16px line + 6px margin) — so its centre lands on the input's
+centre, with the label flush to the input's left edge. Redundant row-level margins were
+removed; rhythm now comes solely from `Field`'s own `mb-4`.
+
+### 3.4 Date fields — one affordance, three fields
+
+Start Date had a leading icon, a custom button *and* Chrome's native picker indicator
+(three calendar glyphs); the two payment-date fields had only the native indicator,
+which doesn't exist in Firefox or Safari — so they had no picker button outside Chrome.
+
+A shared `DateField` component now backs all three: one right-side button calling
+`showPicker()`, with a `focus()` fallback. The native indicator is hidden app-wide via a
+scoped rule in the app's own stylesheet — **not** by editing the Tailwind preflight
+block, so regenerating that CSS can't clobber it.
+
+### 3.5 Responsive grids and table headers
+
+Five `grid grid-cols-2` blocks forced two columns at every width; all are now
+`grid-cols-1 sm:grid-cols-2`. Table `<th>` cells got `whitespace-nowrap` so "Interest %"
+no longer wraps while its siblings stay on one line, which was breaking the header row's
+baseline.
+
+### 3.6 Security & PIN Lock
+
+The amber "With a PIN… / Without a PIN…" banner was removed from onboarding step 2; the
+button below picked up `mt-6` to rebalance the spacing. The `WarningBanner` component is
+untouched and still used in 8+ other places.
+
+---
+
+## 5. Usage examples
+
+**A date field** — use the shared component so the picker affordance stays consistent:
+
+```jsx
+<Field label="Disbursal Date">
+  <DateField value={date} onChange={e => setDate(e.target.value)} />
+</Field>
+```
+
+**A currency field** — grouping and caret handling come for free:
+
+```jsx
+<Field label="Principal Amount (₹)">
+  <div className="relative">
+    <Icon name="indian-rupee" size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-mid pointer-events-none" />
+    <CurrencyInput className={inputCls + " font-mono pl-9"} value={v} onChange={setV} />
+  </div>
+</Field>
+```
+
+**A two-column form section** that collapses on phones:
+
+```jsx
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0 items-start">
+  <Field label="Payment Mode"><PaymentModeSelect value={m} onChange={setM} /></Field>
+  <Field label="Date"><DateField value={d} onChange={e => setD(e.target.value)} /></Field>
+</div>
+```
+
+---
+
+## 6. Verification
+
+The JSX was extracted and run through Babel's react preset offline after each pass — it
+parses and transforms cleanly. The currency formatter and caret mapping were unit-tested
+in Node: grouping is correct across the lakh and crore boundaries, decimals and trailing
+dots survive, and front-insertion places the caret correctly.
+
+**None of this proves it renders correctly.** The file could not be opened in a browser
+during either pass — the container has no browser, and the React/Tailwind/Lucide CDNs are
+outside its network allow-list. The PDF layout in particular is reasoned from the jsPDF
+and autoTable APIs, not seen. Please check at **360px, 390px, 768px and 1280px**:
+
+| # | Screen | Check |
+|---|--------|-------|
+| 1 | Customer detail | Icon tiles vertically centred; "Loans 1" correctly spaced; buttons same height, right-aligned; header wraps sanely when narrow. |
+| 2 | Loan row | One figure, no "of …" line. **Confirm it's the number you wanted** — see 2.2. |
+| 3 | Loan accordion | Tab reads "Schedule". |
+| 4 | Any amount field | Commas appear while typing. Click into the middle of a number and type a digit — the caret should stay put. Test a decimal too. |
+| 5 | Report → PDF Statement | Header band and footer on every page; summary cards populated; table striped and right-aligned; totals row present. Generate one for a **multi-page** schedule (60-month loan) and an **interest-only** loan. |
+| 6 | Onboarding step 1 | Tiles centred on inputs, even spacing. |
+| 7 | New Loan wizard | Columns line up; Start Date has exactly one calendar icon, on the right; grids collapse below 640px. |
+| 8 | Record Payment | Date field has a working calendar button — **test in Firefox**, where it previously had none. |
+| 9 | Any dropdown | Opens dark, not white. Check the loan filters, payment mode, rate basis, frequency and tenure — and check Firefox separately. |
+| 10 | Customers list | Rows start collapsed. Clicking one expands it in place; collapsing shows the full list plus Add Customer. Trash icon deletes without expanding the row. |
+| 11 | Deep links | From a dashboard loan row, global search, and a notification — each should expand the right customer **and** open the right loan. Also test the URL hash directly. |
+| 12 | Dashboard / Reports | Summary and the Report-page customer cards start closed. |
+
+---
+
+## 7. Known issues NOT addressed
+
+Found during review, deliberately left alone under the "no logic changes" instruction:
+
+1. **Schedule Preview, row 1, Closing column** renders a value one digit short
+   (`₹1,01,01,01` where row 2's Opening is `₹1,01,01,010`). Since `closing[n]` must equal
+   `opening[n+1]`, either the formatter or the schedule generator is dropping a digit.
+   This is a **wrong financial figure on screen** and should be next.
+2. **Customer detail loan count** disagreed with the Report page in earlier screenshots
+   ("0 Loans" vs "1 loan(s)"). The latest screenshot shows the correct count, so this may
+   already be resolved — worth confirming against a customer with several loans.
+3. **Confirm step summary** renders doubled spaces (`6  months`, `3  days`) — a label
+   template joining a mono value to its unit with an extra space.
+
+One deliberate divergence from the supplied mockups: `New_Loan_Page_1_1_New` showed Start
+Date with both a leading icon and a right-side button — the duplicate-icon defect
+originally flagged in red — so your explicit decision (button only) was followed and that
+detail of the mockup treated as stale.
