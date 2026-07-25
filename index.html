@@ -3406,7 +3406,12 @@ function Modal({ title, onClose, children, wide, dismissOnBackdrop=true }){
     };
   }, [onClose]);
 
-  return (
+  // Portalled to <body> deliberately. An ancestor carrying backdrop-filter (which
+  // .glass does) becomes the containing block for position:fixed descendants, so a
+  // modal rendered inside a .glass card would resolve "fixed inset-0" against that
+  // card instead of the viewport — and any overflow-hidden on it would clip the
+  // dialog. Portalling makes Modal position-independent of where it is mounted.
+  return ReactDOM.createPortal((
     <div
       className="flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
       style={{...overlayStyle, zIndex: Z.modal}}
@@ -3421,7 +3426,7 @@ function Modal({ title, onClose, children, wide, dismissOnBackdrop=true }){
         <div style={scrollBodyStyle} className="p-5 pb-6 overflow-y-scroll overscroll-contain flex-1 min-h-0">{children}</div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 function Field({ label, children }){
   return <div className="mb-4"><label className="text-xs text-mid mb-1.5 block">{label}</label>{children}</div>;

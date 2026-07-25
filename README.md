@@ -73,7 +73,28 @@ loan table, and the list row. The `customerProfile` route is kept as an alias th
 customer — now by expanding the row instead of navigating. Arriving via a loan deep link
 still opens that specific loan inside the expanded customer.
 
-### 2.4 Everything collapsed by default
+### 2.4 Modals portalled to `<body>` (regression fix)
+
+Folding the profile into the card broke every modal opened from inside it — New Loan and
+Edit Customer rendered clipped and transparent, with the row content showing through.
+
+Cause: `.glass` carries `backdrop-filter: blur(12px)`, and per spec **an element with a
+backdrop-filter becomes the containing block for `position: fixed` descendants**. The
+modals previously sat in a plain top-level div, so `fixed inset-0` resolved against the
+viewport. Once they moved inside the `.glass` customer card they resolved against the
+*card*, and the card's `overflow-hidden` clipped what was left.
+
+Fix: `Modal` now renders through `ReactDOM.createPortal(..., document.body)`. That makes
+it independent of where it is mounted, so this class of bug cannot recur no matter how
+deeply a future modal is nested. Toasts and the global search dropdown render at app
+level and were never affected.
+
+Worth knowing: React portals propagate events through the **React** tree, not the DOM
+tree, so modal clicks still bubble through the components that rendered them. The
+expanded body's click handler stops that propagation, so interacting with a modal can't
+collapse the row behind it.
+
+### 2.5 Everything collapsed by default
 
 `Collapsible` now defaults to `defaultOpen={false}`, and the two call sites that passed
 `true` (dashboard Summary, Report-page customer cards) were changed to `false`. The loan
@@ -291,6 +312,7 @@ and autoTable APIs, not seen. Please check at **360px, 390px, 768px and 1280px**
 | 10 | Customers list | Rows start collapsed. Clicking one expands it in place; collapsing shows the full list plus Add Customer. Trash icon deletes without expanding the row. |
 | 11 | Deep links | From a dashboard loan row, global search, and a notification — each should expand the right customer **and** open the right loan. Also test the URL hash directly. |
 | 12 | Dashboard / Reports | Summary and the Report-page customer cards start closed. |
+| 13 | Modals from inside a customer | Expand a customer, then open **New Loan**, **Edit**, **Delete**, and a loan's **Pay** dialog. Each must cover the whole viewport, scroll internally, and close on backdrop click and Escape — not render clipped inside the card. |
 
 ---
 
